@@ -33,7 +33,7 @@ Whatever tool you pick, you configure the same four things:
 ## Quick start — AWX (Job Template)
 
 1. **Project**: SCM type Git, URL of this repo, branch
-   `claude/audible-architecture-docs-lwmh9w` (or `master` once merged).
+   `main`.
 2. **Inventory**: create one, then add a *Source* “Sourced from a Project” →
    file `ansible/inventory/hosts.ini`.
 3. **Credentials**: add a *Vault* credential (paste the vault password) and a
