@@ -1,0 +1,13 @@
+---
+# Connection settings for Windows hosts managed over WinRM.
+# Store real credentials in an Ansible Vault file, not here.
+
+ansible_connection: winrm
+ansible_winrm_transport: ntlm
+ansible_winrm_server_cert_validation: ignore
+ansible_port: 5985
+
+# Software repository — always reference this variable, never a hard-coded path.
+# Current lab: VMware Workstation shared folder.
+# Future production: \\NWA-FILE-01\Software or \\BAC-FILE-01\Software
+rockwell_repo: '\\vmware-host\Shared Folders\RA'
