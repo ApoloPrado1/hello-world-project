@@ -1,0 +1,59 @@
+---
+# Validated unattended installation of Rockwell Studio 5000 Logix Designer v38.02.
+#
+# Correct silent command for this media:
+#   Setup.exe /QS /IAcceptAllLicenseTerms /AutoRestart
+#
+# Do NOT pass /Product="Studio Enterprise" — the installer help lists it as an
+# example but it does not work for this media ("does not support Install now").
+
+- hosts: windows
+  gather_facts: no
+
+  vars:
+    # rockwell_repo is defined in group_vars/windows.yml
+    studio_source: "{{ rockwell_repo }}\\Studio5000\\38.02.00-Studio5000-Web"
+    local_media: 'C:\Install\Studio5000'
+    setup_exe: "{{ local_media }}\\Setup.exe"
+
+  tasks:
+    - name: Create local installation folder
+      ansible.windows.win_file:
+        path: "{{ local_media }}"
+        state: directory
+
+    - name: Verify source media exists
+      ansible.windows.win_stat:
+        path: "{{ studio_source }}\\Setup.exe"
+      register: source_setup
+
+    - name: Fail if source media not found
+      ansible.builtin.fail:
+        msg: "Studio5000 source media not found at {{ studio_source }}"
+      when: not source_setup.stat.exists
+
+    - name: Copy Studio5000 media locally (UNC source; drive letters unreliable over WinRM)
+      ansible.windows.win_shell: |
+        robocopy "{{ studio_source }}" "{{ local_media }}" /E /R:1 /W:1
+      register: copy_result
+      # Robocopy: exit codes 0-7 = success, 8+ = failure.
+      failed_when: copy_result.rc >= 8
+
+    - name: Verify local Setup.exe exists
+      ansible.windows.win_stat:
+        path: "{{ setup_exe }}"
+      register: local_setup
+
+    - name: Fail if local Setup.exe missing
+      ansible.builtin.fail:
+        msg: "Local Setup.exe not found after copy"
+      when: not local_setup.stat.exists
+
+    - name: Install Studio5000 unattended
+      ansible.windows.win_shell: |
+        Start-Process -FilePath "{{ setup_exe }}" `
+          -ArgumentList '/QS /IAcceptAllLicenseTerms /AutoRestart' `
+          -Wait -PassThru
+      args:
+        executable: powershell.exe
+      register: install_result
