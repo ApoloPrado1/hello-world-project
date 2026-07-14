@@ -1,10 +1,19 @@
 ---
-# ntp-server role — NWA-NTP-01, the domain's authoritative time source.
-# TARGET: serve time sourced from a GPS unit (stratum 1) to the PDC emulator.
+# ntp-server role — NWA-NTP-01: a DEDICATED GPS-NTP APPLIANCE (with antenna).
 #
-# TODO (pending hardware): decide platform (Windows host vs appliance) and how
-# the GPS unit connects (serial/USB/PPS or a GPS-NTP appliance). Then configure:
-#   - discipline the local clock from the GPS reference
-#   - serve NTP to NWA-DC-01 (PDC emulator) and any non-domain infrastructure
-# Until the GPS source exists, the PDC uses time_authoritative_peers (interim
-# external pool) from group_vars/all.yml.
+# Nature:
+#   - Physical appliance, stratum 1, time referenced from GPS via an antenna.
+#   - NOT a Windows host: it does NOT get the windows-base role and is not
+#     reached over WinRM. Management is via its own interface (web UI / SNMP /
+#     SSH), which is vendor-specific.
+#   - Not virtualisable (needs the GPS antenna), so it has no lab stand-in; until
+#     the appliance is on the network the PDC uses time_authoritative_peers
+#     (interim external pool) from group_vars/all.yml.
+#
+# Role responsibility (target): serve NTP to NWA-DC-01 (PDC emulator) and any
+# non-domain infrastructure that needs it.
+#
+# TODO (pending hardware): confirm vendor/model and management method, then
+# either configure it here via the appropriate collection (e.g. SNMP/SSH) or,
+# if the appliance is configured out-of-band, keep this role as documentation
+# and just record its address in host_vars/nwa-ntp-01.

@@ -1,0 +1,8 @@
+---
+# NWA-NTP-01 — dedicated GPS-NTP appliance (stratum 1, GPS antenna).
+# Managed via its own interface (web/SNMP/SSH), NOT WinRM. Once the appliance is
+# live, point time_authoritative_peers (group_vars/all.yml) at this IP so the PDC
+# emulator syncs from it instead of the interim external pool.
+
+# ansible_host: 172.16.128.5        # TODO: real management IP
+# ansible_connection: network_cli   # TODO: set per vendor (or httpapi / local)
