@@ -1,0 +1,30 @@
+---
+# epp — Endpoint Protection. HOST-layer role: runs on the WS2025 hosts and
+# workstations, NOT inside the application guest VMs.
+#
+# Vendor-agnostic scaffold. The OT/Rockwell exclusions below are the same for any
+# product; fill in the vendor-specific installer bits when the product is chosen
+# (Defender / CrowdStrike / Trend / Trellix / ...).
+
+# --- Vendor installer (leave blank until the product is decided) --------------
+epp_installer_src: ""                 # e.g. "{{ rockwell_repo }}\\EPP\\<vendor>\\Setup.exe"
+epp_local_dir: 'C:\Install\EPP'
+epp_installer_name: ""                # e.g. "Setup.exe"
+epp_silent_args: ""                   # product-specific silent flags
+epp_service_name: ""                  # Windows service to verify after install
+# epp_management_server: "NWA-EPP-01" # central console, if the product uses one
+# epp_enrollment_token: "{{ vault_epp_token }}"   # via vault, if needed
+
+# --- OT / Rockwell antivirus exclusions (vendor-independent) ------------------
+# CRITICAL: scanning these paths can break FactoryTalk / SCADA / Historian.
+epp_apply_defender_exclusions: true   # apply to built-in Defender (harmless even
+                                      # if a 3rd-party EPP later runs primary)
+epp_exclusions_paths:
+  - 'C:\Program Files\Rockwell Software'
+  - 'C:\Program Files (x86)\Rockwell Software'
+  - 'C:\Program Files\Common Files\Rockwell'
+  - 'C:\Program Files (x86)\Common Files\Rockwell'
+  - 'C:\ProgramData\Rockwell'
+  - 'C:\Users\Public\Documents\Rockwell Automation'
+  - 'C:\RA'
+epp_exclusions_processes: []          # optional, e.g. specific FactoryTalk .exe names

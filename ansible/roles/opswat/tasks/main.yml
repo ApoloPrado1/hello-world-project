@@ -1,2 +1,9 @@
 ---
-# opswat role — tasks (to be implemented)
+# opswat — the Level-2 DPI / OPSWAT firewalls (NWA-FW-01, BAC-FW-01).
+#
+# TODO: OPSWAT management/automation method is vendor-specific and NOT yet chosen
+# (like the EPP product). Once confirmed:
+#   - set the connection + credentials in group_vars/opswat_firewalls.yml
+#   - implement config here via the appropriate API/CLI (baseline first: mgmt,
+#     NTP from NWA-NTP-01, syslog to the SIEM; then inter-level policy)
+# Kept as a documented placeholder so site.yml has the play wired and ready.

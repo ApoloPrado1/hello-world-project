@@ -1,2 +1,46 @@
 ---
-# epp role — tasks (to be implemented)
+# epp — apply OT antivirus exclusions now; install the vendor agent once chosen.
+
+- name: Apply Rockwell/OT path exclusions to Windows Defender
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $paths = @({{ epp_exclusions_paths | map('regex_replace', '^(.*)$', "'\1'") | join(',') }})
+      foreach ($p in $paths) { Add-MpPreference -ExclusionPath $p -ErrorAction SilentlyContinue }
+      {% if epp_exclusions_processes | length > 0 %}
+      $procs = @({{ epp_exclusions_processes | map('regex_replace', '^(.*)$', "'\1'") | join(',') }})
+      foreach ($x in $procs) { Add-MpPreference -ExclusionProcess $x -ErrorAction SilentlyContinue }
+      {% endif %}
+      $Ansible.Changed = $true
+  when: epp_apply_defender_exclusions | bool
+
+# --- Vendor agent install (runs only once epp_installer_src is filled in) ------
+- name: Create local EPP install folder
+  ansible.windows.win_file:
+    path: "{{ epp_local_dir }}"
+    state: directory
+  when: epp_installer_src | length > 0
+
+- name: Copy EPP installer locally (UNC source, robocopy)
+  ansible.windows.win_shell: |
+    robocopy "{{ epp_installer_src | win_dirname }}" "{{ epp_local_dir }}" "{{ epp_installer_name }}" /R:1 /W:1
+  register: epp_copy
+  failed_when: epp_copy.rc >= 8
+  changed_when: epp_copy.rc >= 1
+  when: epp_installer_src | length > 0
+
+- name: Install EPP agent silently
+  ansible.windows.win_shell: |
+    Start-Process -FilePath "{{ epp_local_dir }}\\{{ epp_installer_name }}" `
+      -ArgumentList '{{ epp_silent_args }}' -Wait -PassThru
+  args:
+    executable: powershell.exe
+  when:
+    - epp_installer_src | length > 0
+    - epp_silent_args | length > 0
+
+- name: Verify EPP service is running
+  ansible.windows.win_service:
+    name: "{{ epp_service_name }}"
+    state: started
+  when: epp_service_name | length > 0

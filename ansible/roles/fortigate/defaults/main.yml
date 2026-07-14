@@ -1,0 +1,13 @@
+---
+# fortigate — baseline config for FortiGate firewalls (via fortinet.fortios API).
+# These are the deep-packet-inspection firewalls between Purdue levels.
+
+fgt_hostname: "{{ inventory_hostname | upper }}"
+fgt_ntp_servers: []            # list of { id, server }, e.g. [{ id: 1, server: "172.16.128.5" }]
+fgt_dns_primary: ""
+fgt_dns_secondary: ""
+fgt_syslog_host: ""            # SIEM (NWA-SEM-01)
+
+# Interfaces, zones and inter-level policies are the main body of work and are
+# highly site-specific — build them out per site in host_vars once addressing and
+# the security matrix are confirmed. Baseline (hostname/NTP/DNS/syslog) below.

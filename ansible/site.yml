@@ -13,7 +13,7 @@
   roles:
     - windows-base
     - hyperv
-    # - epp            # endpoint protection installs on the HOST layer
+    - epp              # endpoint protection installs on the HOST layer
 
 # 2. DOMAIN LAYER — promote the Domain Controllers.
 #    First application workload; everything domain-joined depends on it.
@@ -35,3 +35,26 @@
 #   roles:
 #     - windows-base
 #     - studio5000
+
+# 4. NETWORK LAYER — switches and firewalls (appliances over SSH/API, not WinRM).
+#    Virtual appliances in the lab, physical later; same roles for both.
+- name: Configure Cisco switches
+  hosts: cisco_switches
+  gather_facts: no
+  tags: [network, switches]
+  roles:
+    - cisco-switch
+
+- name: Configure FortiGate firewalls
+  hosts: fortigate_firewalls
+  gather_facts: no
+  tags: [network, firewalls]
+  roles:
+    - fortigate
+
+- name: Configure OPSWAT firewalls
+  hosts: opswat_firewalls
+  gather_facts: no
+  tags: [network, firewalls, opswat]
+  roles:
+    - opswat

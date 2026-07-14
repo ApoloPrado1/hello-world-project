@@ -1,2 +1,44 @@
 ---
-# cisco-switch role — tasks (to be implemented)
+# cisco-switch — apply baseline switch configuration and back up the config.
+
+- name: Set hostname and domain name
+  cisco.ios.ios_config:
+    lines:
+      - "hostname {{ inventory_hostname | upper }}"
+      - "ip domain name {{ cisco_domain_name }}"
+
+- name: Configure VLANs (Purdue-level segmentation)
+  cisco.ios.ios_vlans:
+    config: "{{ cisco_vlans }}"
+    state: merged
+  when: cisco_vlans | length > 0
+
+- name: Configure NTP servers (GPS-backed source)
+  cisco.ios.ios_config:
+    lines: "{{ cisco_ntp_servers | map('regex_replace', '^(.*)$', 'ntp server \\1') | list }}"
+  when: cisco_ntp_servers | length > 0
+
+- name: Configure SNMP (read-only)
+  cisco.ios.ios_config:
+    lines:
+      - "snmp-server community {{ cisco_snmp_community }} RO"
+      - "snmp-server location {{ cisco_snmp_location }}"
+  when: cisco_snmp_community | length > 0
+
+- name: Configure syslog to the SIEM
+  cisco.ios.ios_config:
+    lines:
+      - "logging host {{ cisco_syslog_host }}"
+  when: cisco_syslog_host | length > 0
+
+- name: Back up the running configuration
+  cisco.ios.ios_config:
+    backup: true
+    backup_options:
+      dir_path: "{{ cisco_backup_dir }}"
+      filename: "{{ inventory_hostname }}.cfg"
+
+- name: Save configuration (write memory) when changed
+  cisco.ios.ios_config:
+    save_when: modified
+  when: cisco_save_config | bool

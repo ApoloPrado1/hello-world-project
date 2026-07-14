@@ -1,2 +1,32 @@
 ---
-# fortigate role — tasks (to be implemented)
+# fortigate — apply baseline firewall settings. Zones/policies are added later.
+
+- name: Set system hostname
+  fortinet.fortios.fortios_system_global:
+    system_global:
+      hostname: "{{ fgt_hostname }}"
+
+- name: Configure NTP servers (GPS-backed source)
+  fortinet.fortios.fortios_system_ntp:
+    system_ntp:
+      type: custom
+      ntpserver: "{{ fgt_ntp_servers }}"    # list of { id, server } — see defaults
+  when: fgt_ntp_servers | length > 0
+
+- name: Configure DNS
+  fortinet.fortios.fortios_system_dns:
+    system_dns:
+      primary: "{{ fgt_dns_primary }}"
+      secondary: "{{ fgt_dns_secondary | default(omit, true) }}"
+  when: fgt_dns_primary | length > 0
+
+- name: Send logs to the SIEM (syslog)
+  fortinet.fortios.fortios_log_syslogd_setting:
+    log_syslogd_setting:
+      status: enable
+      server: "{{ fgt_syslog_host }}"
+  when: fgt_syslog_host | length > 0
+
+# TODO (main work, per site): interfaces + zones per Purdue level, address/service
+# objects, and inter-level firewall policies (default-deny between levels, DMZ
+# rules, secure remote access). Build in host_vars once the security matrix is set.

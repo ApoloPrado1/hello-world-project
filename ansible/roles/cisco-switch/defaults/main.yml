@@ -1,0 +1,23 @@
+---
+# cisco-switch — baseline config for Cisco switches (via cisco.ios over SSH).
+
+cisco_domain_name: "BPA-BNW.net"
+
+# VLANs — schema matches cisco.ios.ios_vlans. Define per switch in host_vars.
+# cisco_vlans:
+#   - { vlan_id: 10,  name: L2_Supervisory }
+#   - { vlan_id: 30,  name: L3_Operations }
+#   - { vlan_id: 35,  name: L35_DMZ }
+cisco_vlans: []
+
+# Time — point switches at the GPS-backed NTP appliance (NWA-NTP-01) when ready.
+cisco_ntp_servers: []          # e.g. [ "172.16.128.5" ]
+
+# Monitoring / logging
+cisco_syslog_host: ""          # SIEM, e.g. NWA-SEM-01 address
+cisco_snmp_community: ""       # via vault: "{{ vault_cisco_snmp_ro }}"
+cisco_snmp_location: ""
+
+# Hardening / housekeeping
+cisco_save_config: true
+cisco_backup_dir: "./backups/cisco"

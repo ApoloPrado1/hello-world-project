@@ -1,0 +1,7 @@
+---
+# Connection settings for OPSWAT firewalls.
+# TODO: OPSWAT management method is vendor-specific and not yet chosen (API/CLI).
+# Treat like EPP: confirm the product/API, then set connection + credentials here.
+# ansible_connection: httpapi | network_cli | local (per vendor)
+# ansible_user: "{{ vault_opswat_user }}"
+# ansible_password: "{{ vault_opswat_password }}"
