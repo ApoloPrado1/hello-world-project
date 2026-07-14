@@ -35,22 +35,37 @@
         $Ansible.Changed = $false
       }
 
-- name: Create guest VMs defined for this host
+- name: Create guest VMs defined for this host (from the portable template VHDX)
   ansible.windows.win_powershell:
     script: |
       $ErrorActionPreference = 'Stop'
-      $name   = '{{ item.name }}'
-      $vhd    = Join-Path '{{ hyperv_vhd_path }}' ($name + '.vhdx')
-      $switch = '{{ item.switch | default(hyperv_external_switch_name) }}'
+      $name     = '{{ item.name }}'
+      $vhd      = Join-Path '{{ hyperv_vhd_path }}' ($name + '.vhdx')
+      $switch   = '{{ item.switch | default(hyperv_external_switch_name) }}'
+      $template = '{{ item.template | default(hyperv_template_vhdx) }}'
       if (-not (Get-VM -Name $name -ErrorAction SilentlyContinue)) {
         if (-not (Test-Path $vhd)) {
-          New-VHD -Path $vhd -SizeBytes ({{ item.vhd_size_gb | default(99) }}GB) -Dynamic | Out-Null
+          if (Test-Path $template) {
+            # Full copy of the sysprepped template -> portable, bootable OS disk.
+            Copy-Item -Path $template -Destination $vhd
+          } else {
+            # No template available: create a blank disk (guest will need an OS).
+            New-VHD -Path $vhd -SizeBytes ({{ item.vhd_size_gb | default(99) }}GB) -Dynamic | Out-Null
+          }
         }
         New-VM -Name $name -Generation 2 `
           -MemoryStartupBytes ({{ item.memory_gb | default(8) }}GB) `
           -VHDPath $vhd -SwitchName $switch `
           -Path '{{ hyperv_vm_path }}' | Out-Null
-        Set-VM -Name $name -ProcessorCount {{ item.cpu | default(2) }}
+        Set-VM -Name $name -ProcessorCount {{ item.cpu | default(2) }} -AutomaticStartAction Start
+        # Guests keep time from w32time/NTP (critical for DCs), not from the host.
+        Disable-VMIntegrationService -VMName $name -Name 'Time Synchronization' -ErrorAction SilentlyContinue
+      {% if hyperv_guest_nested %}
+        Set-VMProcessor -VMName $name -ExposeVirtualizationExtensions $true
+      {% endif %}
+      {% if hyperv_guest_start %}
+        Start-VM -Name $name
+      {% endif %}
         $Ansible.Changed = $true
       } else {
         $Ansible.Changed = $false

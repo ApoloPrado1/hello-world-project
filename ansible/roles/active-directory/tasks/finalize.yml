@@ -1,6 +1,10 @@
 ---
 # Phase 3 — finalise the DC after promotion.
 
+# Time sync must come from w32time/NTP, not the hypervisor.
+# - Hyper-V guests: the host disables the "Time Synchronization" integration
+#   service (see the hyperv role).
+# - ESXi-direct VMs (current interim setup): disable VMware Tools time sync here.
 - name: Disable VMware Tools time sync (only if VMware Tools is present)
   ansible.windows.win_shell: |
     $cmd = 'C:\Program Files\VMware\VMware Tools\VMwareToolboxCmd.exe'

@@ -1,0 +1,32 @@
+---
+# Migration helper: export the Hyper-V guest VMs so they can be imported, as-is,
+# onto the physical Hyper-V hosts when the hardware arrives — no rebuild.
+#
+# On the physical host you then run:  Import-VM -Path <copied export>\...\*.vmcx
+#
+# Usage: ansible-playbook playbooks/export-guests.yml --limit nwa-vh-01
+
+- name: Export Hyper-V guests for migration to physical hosts
+  hosts: hyperv_hosts
+  gather_facts: no
+  tasks:
+    - name: Ensure export directory exists
+      ansible.windows.win_file:
+        path: "{{ hyperv_export_path }}"
+        state: directory
+
+    - name: Export each guest VM
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = 'Stop'
+          $name = '{{ item.name }}'
+          if (Get-VM -Name $name -ErrorAction SilentlyContinue) {
+            Export-VM -Name $name -Path '{{ hyperv_export_path }}'
+            $Ansible.Changed = $true
+          } else {
+            $Ansible.Changed = $false
+          }
+      loop: "{{ hyperv_guests | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: hyperv_guests | default([]) | length > 0

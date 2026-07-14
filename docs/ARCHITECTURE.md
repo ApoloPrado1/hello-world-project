@@ -146,6 +146,39 @@ management IP changes.
 isolated from everything else, so swapping virtual for physical touches only that
 one manual step.
 
+### 3.6 Portability — why the workloads run on Hyper-V (no rebuild)
+
+The workloads (DC, SCADA, Historian, …) are deliberately built as **Hyper-V
+guest VMs**, *not* as VMs directly on ESXi — even in the lab. This is what avoids
+rebuilding everything when the physical servers arrive:
+
+| Built as… | Migration to the physical Hyper-V server |
+| --- | --- |
+| VM directly on ESXi (VMDK) | Rebuild from scratch, or convert VMDK → VHDX |
+| **Hyper-V guest (VHDX), nested in ESXi** | `Export-VM` → copy the VHDX → `Import-VM` on the physical host. **No rebuild.** |
+
+Because the physical `VH` servers will run Hyper-V, a guest VHDX created in the
+nested lab imports onto them unchanged. Guests are therefore built as a **full
+copy of a sysprepped WS2025 template VHDX** (see the `hyperv` role), which keeps
+them portable.
+
+**Migration flow when hardware arrives:**
+
+```
+Lab (ESXi):  hyperv role builds guest VHDX  →  playbooks/export-guests.yml (Export-VM)
+                                             →  copy export to physical VH
+Physical VH:  Import-VM  →  guest runs unchanged  →  re-run Ansible to verify
+```
+
+Two consequences captured in the roles:
+
+- Guests take time from **w32time/NTP**, so the Hyper-V host disables the
+  guest's "Time Synchronization" integration service (and the DC finalize step
+  disables VMware time sync for any interim ESXi-direct VM).
+- The interim state — workloads still sitting directly on ESXi — is exactly what
+  we are moving *away from*; the target is workloads inside Hyper-V on the `VH`
+  hosts.
+
 ---
 
 ## 4. Automation Architecture

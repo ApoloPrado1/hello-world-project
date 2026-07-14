@@ -13,9 +13,19 @@ hyperv_external_switch_nic: "Ethernet"
 hyperv_vm_path: 'C:\Hyper-V\VMs'
 hyperv_vhd_path: 'C:\Hyper-V\VHDs'
 
+# Sysprepped WS2025 template VHDX (with WinRM pre-enabled). Each guest is a full
+# COPY of this file, which is what makes the guest portable: the resulting VHDX
+# can be Export-VM'd and imported straight onto the physical Hyper-V host later,
+# with no rebuild. If the template is missing, a blank dynamic VHDX is created.
+hyperv_template_vhdx: 'C:\Hyper-V\Templates\WS2025-sysprep.vhdx'
+
+# Start guests after creating them.
+hyperv_guest_start: true
+
+# Only set true for a guest that must itself run Hyper-V (not needed for DCs/apps).
+hyperv_guest_nested: false
+
 # Guest VMs to create ON THIS HOST. Define per host in host_vars/<host>.yml.
-# A sysprepped WS2025 template VHDX (with WinRM enabled) is expected as the base
-# image so Ansible can reach the guest afterwards.
 #
 # hyperv_guests:
 #   - name: NWA-DC-01
@@ -23,4 +33,8 @@ hyperv_vhd_path: 'C:\Hyper-V\VHDs'
 #     memory_gb: 8
 #     vhd_size_gb: 99
 #     switch: "OT-External"
+#     template: 'C:\Hyper-V\Templates\WS2025-sysprep.vhdx'   # optional override
 hyperv_guests: []
+
+# Where guests are exported for migration to the physical Hyper-V hosts.
+hyperv_export_path: 'C:\Hyper-V\Export'
