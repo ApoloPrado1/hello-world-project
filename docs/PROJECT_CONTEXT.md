@@ -109,8 +109,17 @@ Confirmed with the project owner (not an assumption):
 
 ---
 
-## 6. Failed / rejected approaches
+## 6. Principles & rejected approaches
 
+- **The engineer's scripts are a *reference*, not the spec.** They capture what
+  was done manually, not necessarily what is required — validate each against the
+  target design before encoding it (e.g. the time-sync change below).
+- **Time sync — external NTP is interim, not the design.** OT time must come from
+  a **local GPS-backed source**: `GPS → NWA-NTP-01 → PDC emulator (NWA-DC-01) →
+  AD hierarchy → everything else`. Only the PDC points at the NTP server; all
+  other machines sync via the domain. See ARCHITECTURE "Time Synchronization".
+  Central knob: `time_authoritative_peers` in `group_vars/all.yml` (TODO: point
+  at NWA-NTP-01/GPS when it exists).
 - **`Setup.exe /Product="Studio Enterprise"`** — documented in installer help but
   fails on this media ("does not support Install now"). Rejected.
 - **Mapped drive letters (`X:`) over WinRM** — unreliable across sessions. Use UNC.

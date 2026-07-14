@@ -1,0 +1,17 @@
+---
+# Global variables shared by every host.
+
+# -------------------------------------------------------------------
+# Time synchronization
+# -------------------------------------------------------------------
+# The domain's authoritative upstream clock — what the PDC emulator (the forest
+# root DC, NWA-DC-01) syncs from. Everything else syncs down the AD hierarchy.
+#
+# TARGET (production): the internal GPS-backed NTP server NWA-NTP-01, e.g.
+#   time_authoritative_peers: [ "172.16.128.5,0x8" ]      # NWA-NTP-01 (GPS)
+#
+# INTERIM (now): external pool, because the NTP server / GPS source is not yet
+# in place. Replace this the moment NWA-NTP-01 exists. TODO.
+time_authoritative_peers:
+  - "0.uk.pool.ntp.org,0x8"
+  - "1.uk.pool.ntp.org,0x8"

@@ -464,6 +464,43 @@ for the validated playbook.
 
 ---
 
+## 10b. Time Synchronization
+
+> The original per-DC scripts pointed the forest root at an **external** NTP pool.
+> That is interim only — an OT environment must take time from a **local,
+> trusted source**, not the internet.
+
+**Target hierarchy:**
+
+```
+GPS unit ──▶ NWA-NTP-01 (NTP server, stratum 1)
+                 │
+                 ▼
+        NWA-DC-01 = PDC emulator (forest root)   ← the ONLY box pointing at the NTP server
+                 │  (Active Directory domain hierarchy)
+                 ▼
+   BAC-DC-01, SCADA, Historian, workstations, … (everything else)
+```
+
+Rules the roles enforce:
+
+- **PDC emulator (forest root, `NWA-DC-01`)** — syncs from the authoritative
+  source `time_authoritative_peers` (see `group_vars/all.yml`), marked
+  `/reliable:yes`. Point this at **NWA-NTP-01 (GPS)** when it exists; until then
+  it uses an interim external pool.
+- **Every other machine** (additional DCs *and* domain members) — syncs from the
+  **AD domain hierarchy** (`/syncfromflags:domhier`). This is Windows' default
+  for domain members, so ordinary hosts need no explicit NTP config
+  (`windows-base` deliberately leaves it off).
+- **NWA-NTP-01** — the `ntp-server` role (TBD) disciplines its clock from the GPS
+  unit and serves the PDC. Platform (Windows vs appliance) and GPS connection are
+  pending hardware.
+
+Net effect: one authoritative source (GPS → NTP server), and every other node is
+kept in sync automatically through Active Directory.
+
+---
+
 ## 11. Lessons Learned
 
 | Area | Finding |

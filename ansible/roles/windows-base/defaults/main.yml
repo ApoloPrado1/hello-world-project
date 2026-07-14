@@ -14,9 +14,13 @@ win_base_gateway: ""
 
 # Time
 win_base_timezone: "GMT Standard Time"
-win_base_ntp_servers:
-  - "0.uk.pool.ntp.org"
-  - "1.uk.pool.ntp.org"
+# Time sync is handled centrally by the domain hierarchy (see docs/ARCHITECTURE.md
+# "Time Synchronization"): the PDC emulator syncs from the NTP server (GPS-backed),
+# and every domain member syncs from the domain automatically. So DO NOT force an
+# NTP peer on ordinary machines — leave this off. Only set true for a machine that
+# is NOT domain-joined and must point at an explicit source.
+win_base_configure_ntp: false
+win_base_ntp_servers: []
 
 # Remote management / access
 win_base_enable_rdp: true

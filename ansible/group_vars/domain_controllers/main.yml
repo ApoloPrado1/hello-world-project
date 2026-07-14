@@ -17,7 +17,7 @@ ad_log_path: 'C:\Windows\NTDS'
 ad_sysvol_path: 'C:\Windows\SYSVOL'
 
 ad_configure_ntp: true
-ad_ntp_peers:
-  - "0.uk.pool.ntp.org,0x8"
-  - "1.uk.pool.ntp.org,0x8"
+# The PDC emulator (forest root) syncs from the domain's authoritative source.
+# Defined centrally in group_vars/all.yml -> point at NWA-NTP-01 (GPS) when ready.
+ad_ntp_peers: "{{ time_authoritative_peers }}"
 ad_disable_vmware_timesync: true
