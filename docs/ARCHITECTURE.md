@@ -108,57 +108,83 @@ Software is installed at one of two layers, and roles are written accordingly:
 | **Host layer** | Directly on the Windows Server 2025 host (the `VH`) | Endpoint Protection (EPP), base OS hardening, Hyper-V role, monitoring/backup agents |
 | **Guest layer** | Inside the Hyper-V VMs on that host | Domain Controller, SCADA, Historian, AssetCentre, Studio 5000, View Designer |
 
-### 3.4 What changes between lab and production
+### 3.4 Network devices — virtual appliances (lab) vs physical (production)
 
-| Layer | Lab | Production | Same roles? |
+The network layer follows the **same pattern** as the servers: physical at the
+end, virtualised for the lab.
+
+| Device role | Lab (now) | Production (final) |
+| --- | --- | --- |
+| FortiGate firewalls (`*-FW-02/03`) | FortiGate-VM appliance on ESXi | Physical FortiGate |
+| OPSWAT firewalls (`*-FW-01`) | OPSWAT virtual appliance on ESXi | Physical OPSWAT |
+| Cisco switches (`*-SW-*`) | Cisco VM (IOSv/CSR/Cat8000v, optionally in EVE-NG) | Physical Cisco |
+
+In the lab, Purdue-level segmentation is realised with **ESXi port groups /
+VLANs plus these appliance VMs**. Because Ansible configures the appliance by
+role (rules, VLANs, NTP, SNMP, config backup), the same role applies whether the
+target is a virtual appliance or the physical box — only the appliance's
+management IP changes.
+
+### 3.5 What changes between lab and production
+
+| Layer | Lab (now) | Production (final) | Same roles? |
 | --- | --- | --- | --- |
-| Create the 6 `VH` machines | Terraform → ESXi VMs | Bare-metal / imaging | ❌ only this layer changes |
+| Create the 6 `VH` machines | **Manual clone** of a WS2025 template on ESXi | Bare-metal install / imaging | ❌ only this layer changes |
+| Create network appliances | Deploy virtual appliance VMs on ESXi | Rack physical devices | ❌ only this layer changes |
 | Enable Hyper-V + host software | Ansible | Ansible | ✅ identical |
-| Create & configure nested/guest VMs | Ansible | Ansible | ✅ identical |
+| Create & configure guest VMs | Ansible | Ansible | ✅ identical |
 | Install app software in VMs | Ansible | Ansible | ✅ identical |
-| Network: firewalls & switches | Ansible | Ansible | ✅ identical |
+| Configure firewalls & switches | Ansible | Ansible | ✅ identical |
 
-**Design rule:** keep the "create the VH" step isolated in its own layer
-(Terraform + a thin variable set) so swapping ESXi for physical hardware touches
-only that layer.
+> **No Terraform.** VM creation is **not** automated in this project because API
+> access to create VMs on the ESXi server is restricted. The six hosts are
+> **cloned manually**; Ansible takes over from first boot. Terraform is kept only
+> as an **optional future** step (see [`../terraform/README.md`](../terraform/README.md))
+> if API-based provisioning ever becomes available — it does not block anything.
+
+**Design rule:** keep the "create the machine" step (servers *and* appliances)
+isolated from everything else, so swapping virtual for physical touches only that
+one manual step.
 
 ---
 
 ## 4. Automation Architecture
 
-The primary automation host is **NWA-AUTO-01** (Ubuntu Linux) — the single
-control point for all Infrastructure-as-Code operations.
+The single automation host is an **Ubuntu Linux control node**. It is the only
+machine with Ansible installed, and it drives everything else.
 
 ```mermaid
 flowchart LR
-    subgraph AUTO["NWA-AUTO-01 (Ubuntu)"]
-        GIT[Git repository]
-        TF[Terraform]
+    subgraph AUTO["Ubuntu control node"]
+        GIT[Git working copy]
         ANS[Ansible]
         DOC[Documentation]
         REPO[Software repository access]
     end
 
-    TF -->|lab only| ESXi[ESXi dev server]
-    ESXi --> VH[6x WS2025 hosts]
-    ANS -->|WinRM| VH
+    ANS -->|WinRM| VH[6x WS2025 hosts]
     VH --> HV[Nested Hyper-V + guest VMs]
-    ANS -->|SSH/API| NET[Cisco / FortiGate / OPSWAT]
+    ANS -->|SSH/API| NET[Cisco / FortiGate / OPSWAT appliances]
 ```
 
-**NWA-AUTO-01 responsibilities**
+Ansible is **agentless**: nothing is permanently installed on the targets. The
+control node opens a connection (WinRM for Windows, SSH/API for network gear),
+pushes the change, and disconnects.
 
-- Ansible control node (Windows managed over WinRM; network gear over SSH/API)
-- Terraform execution node (creates the six WS2025 VMs on the ESXi dev server)
-- Git repository / documentation repository
-- Software repository access
+**Control-node responsibilities**
 
-### Ultimate deployment flow
+- Ansible control node (Windows over WinRM; network appliances over SSH/API)
+- Git working copy of this repository
+- Documentation and software-repository access
+
+### Deployment flow (current, no Terraform)
 
 ```
-Git → Terraform → ESXi (lab) → 6x WS2025 hosts → enable Hyper-V
-    → guest VMs → Windows servers → Rockwell applications
-    → network config (Cisco / FortiGate / OPSWAT)
+Manual clone: 6x WS2025 hosts + appliance VMs on ESXi
+    → Ansible: enable Hyper-V + host software (EPP)
+    → Ansible: create guest VMs
+    → Ansible: install Windows/Rockwell software in the VMs
+    → Ansible: configure Cisco / FortiGate / OPSWAT
     → Fully automated NWA / BAC OT environment
 ```
 
@@ -426,7 +452,7 @@ for the validated playbook.
 | 3 | Create Cisco switch automation |
 | 4 | Create FortiGate automation |
 | 5 | Deploy EVE-NG network lab |
-| 6 | Terraform: provision the 6 WS2025 hosts on the ESXi dev server |
+| 6 | *(Optional / future)* Terraform to provision the 6 hosts on ESXi — only if API access is granted; not required |
 | 7 | Automated deployment of NWA environment |
 | 8 | Automated deployment of BAC environment |
 

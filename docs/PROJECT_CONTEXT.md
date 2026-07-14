@@ -20,11 +20,15 @@ steps.
 
 ## 2. Automation strategy
 
-- **Control node:** `NWA-AUTO-01` (Ubuntu Linux) — runs Git, Terraform, Ansible,
-  documentation, and software-repository access.
+- **Control node:** an Ubuntu Linux VM (`NWA-AUTO-01`) — the only machine with
+  Ansible. Runs Git, Ansible, documentation, and software-repository access.
+- **Agentless:** nothing is permanently installed on the targets.
 - **Windows management:** Ansible over **WinRM** (validated for copy, PowerShell,
-  and long installs).
-- **Provisioning direction:** `Git → Terraform (ESXi) → Hyper-V → Network → Windows → Rockwell`.
+  and long installs). Network appliances over **SSH/API**.
+- **No Terraform:** VM creation is not automated (restricted API access). The six
+  hosts and the network appliances are **cloned/deployed manually**; Ansible
+  takes over from first boot.
+- **Provisioning direction:** `Manual clone (ESXi) → Ansible: Hyper-V → guest VMs → Windows/Rockwell → Network (Cisco/FortiGate/OPSWAT)`.
 - **Golden rule:** reference software media through the `rockwell_repo` variable,
   never a hard-coded path.
 
@@ -57,7 +61,9 @@ mkdir -p ~/ot-lab/software
 | No separate roles for FactoryTalk Linx / Activation Manager / ControlFLASH | They install as part of Studio 5000 |
 | Studio 5000 installed with `/QS /IAcceptAllLicenseTerms /AutoRestart` only | `/Product=` example from installer help does not work for this media |
 | **Lab = 6x WS2025 VMs on one ESXi dev server (nested Hyper-V); production = 6 physical servers** | Build and validate now, before the physical hardware arrives |
-| **Isolate the "create the VH" layer** (Terraform/ESXi in lab, bare-metal in prod) | Everything above it is identical Ansible → minimal-change migration |
+| **No Terraform — manual clone of the 6 hosts** | Restricted API access to create VMs; Ansible takes over from first boot |
+| **Network = virtual appliances in the lab, physical at the end** (FortiGate-VM, OPSWAT-VM, Cisco-VM) | Same pattern as the servers; same Ansible roles apply to virtual or physical |
+| **Isolate the "create the machine" step** (manual clone in lab, bare-metal/racking in prod) | Everything above it is identical Ansible → minimal-change migration |
 | **Two install layers: host (WS2025) vs guest (Hyper-V VMs)** | e.g. EPP installs on the host; SCADA/AD/Historian install inside the VMs |
 
 ---
@@ -71,7 +77,11 @@ Confirmed with the project owner (not an assumption):
   with the **Hyper-V role bare-metal**; OT workloads run as Hyper-V VMs inside.
 - **Now (lab):** one **development ESXi** server. On it, **six WS2025 VMs** stand
   in for the six physical servers, each with **Hyper-V enabled (nested)**; the
-  workload VMs run inside that nested Hyper-V.
+  workload VMs run inside that nested Hyper-V. The six hosts are **cloned
+  manually** (no Terraform / restricted API).
+- **Network:** firewalls and switches are **physical at the end**, but modelled in
+  the lab as **virtual appliances** on the same ESXi (FortiGate-VM, OPSWAT-VM,
+  Cisco-VM). Segmentation uses ESXi port groups/VLANs + these appliances.
 - **Two software layers:** some software installs on the **WS2025 host** itself
   (e.g. Endpoint Protection and other host-level agents); the rest installs
   **inside the Hyper-V VMs**.

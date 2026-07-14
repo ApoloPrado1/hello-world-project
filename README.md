@@ -16,7 +16,9 @@ little as possible: only the layer that *creates* those six hosts differs
 
 | Document | Purpose |
 | --- | --- |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full architecture: Purdue model, site topology, compute inventory, naming, automation, Studio 5000 context |
+| [`docs/TEAM_OVERVIEW.md`](docs/TEAM_OVERVIEW.md) | One-page briefing for the team — start here |
+| [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) | Step-by-step setup: Ubuntu control node, WinRM, first playbook |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full architecture: deployment model, Purdue model, site topology, compute inventory, naming, automation, Studio 5000 context |
 | [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Continuity document — decisions, assumptions, lessons learned, roadmap |
 
 ## Repository layout
@@ -31,7 +33,7 @@ little as possible: only the layer that *creates* those six hosts differs
 │   ├── host_vars/
 │   ├── playbooks/        # studio5000.yml — first of several software installs
 │   └── roles/            # windows-base, hyperv, studio5000, ...
-└── terraform/            # ESXi provisioning (planned)
+└── terraform/            # optional / not used (manual VM clone instead)
 ```
 
 ## Getting started (control node)
