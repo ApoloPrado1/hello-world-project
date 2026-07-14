@@ -1,0 +1,15 @@
+---
+# AWX / Ansible Automation Platform auto-installs collections from THIS path
+# (collections/requirements.yml) when a Project syncs. Kept in step with the
+# top-level ../ansible/requirements.yml used by the CLI.
+collections:
+  - name: ansible.windows
+    version: ">=2.0.0"
+  - name: community.windows
+    version: ">=2.0.0"
+  - name: microsoft.ad
+    version: ">=1.5.0"
+  - name: cisco.ios
+    version: ">=5.0.0"
+  - name: fortinet.fortios
+    version: ">=2.3.0"
