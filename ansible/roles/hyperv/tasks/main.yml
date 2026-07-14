@@ -74,3 +74,36 @@
   loop_control:
     label: "{{ item.name }}"
   when: hyperv_guests | length > 0
+
+- name: Bootstrap WinRM inside each guest via PowerShell Direct (template has none)
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $name = '{{ item.name }}'
+      $sec  = ConvertTo-SecureString '{{ hyperv_guest_admin_password }}' -AsPlainText -Force
+      $cred = New-Object System.Management.Automation.PSCredential('{{ hyperv_guest_admin_user }}', $sec)
+      # Wait for the guest to accept PowerShell Direct (booted past OOBE).
+      $ready = $false
+      for ($i = 0; $i -lt 30 -and -not $ready; $i++) {
+        try { Invoke-Command -VMName $name -Credential $cred -ScriptBlock { $env:COMPUTERNAME } -ErrorAction Stop | Out-Null; $ready = $true }
+        catch { Start-Sleep -Seconds 10 }
+      }
+      if (-not $ready) { throw "PowerShell Direct to $name never became ready." }
+      # Enable WinRM inside the guest so Ansible can target it directly afterwards.
+      Invoke-Command -VMName $name -Credential $cred -ScriptBlock {
+        Enable-PSRemoting -Force | Out-Null
+        Set-Item WSMan:\localhost\Service\Auth\Basic $true
+        Set-Item WSMan:\localhost\Service\AllowUnencrypted $true   # lab only; use HTTPS in prod
+        if (-not (Get-NetFirewallRule -Name 'WinRM-HTTP-In' -ErrorAction SilentlyContinue)) {
+          New-NetFirewallRule -Name 'WinRM-HTTP-In' -DisplayName 'WinRM HTTP' -Protocol TCP `
+            -LocalPort 5985 -Direction Inbound -Action Allow | Out-Null
+        }
+      }
+      $Ansible.Changed = $true
+  loop: "{{ hyperv_guests }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - hyperv_guests | length > 0
+    - hyperv_guest_bootstrap_winrm | bool
+    - hyperv_guest_admin_password is defined

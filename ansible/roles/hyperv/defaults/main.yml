@@ -25,6 +25,16 @@ hyperv_guest_start: true
 # Only set true for a guest that must itself run Hyper-V (not needed for DCs/apps).
 hyperv_guest_nested: false
 
+# The sysprepped template does NOT have WinRM enabled, so a freshly-created guest
+# is unreachable by Ansible over the network. This bootstraps WinRM INSIDE the
+# guest via Hyper-V PowerShell Direct (host -> guest over the VM bus, no network),
+# after which Ansible can target the guest directly. Requires the guest's local
+# admin credentials (baked into the template). Provide via vault:
+#   hyperv_guest_admin_user: "Administrator"
+#   hyperv_guest_admin_password: "{{ vault_template_admin_password }}"
+hyperv_guest_bootstrap_winrm: true
+hyperv_guest_admin_user: "Administrator"
+
 # Guest VMs to create ON THIS HOST. Define per host in host_vars/<host>.yml.
 #
 # hyperv_guests:

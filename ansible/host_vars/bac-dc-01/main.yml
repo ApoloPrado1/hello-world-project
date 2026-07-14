@@ -1,23 +1,28 @@
 ---
-# BAC-DC-01 — second Domain Controller (partner) in the BPA-BNW.net forest.
-# This host JOINS the existing domain (it does not create a forest).
+# Second Domain Controller (partner) in the BPA-BNW.net forest.
+# Values taken from the validated Configure-DC02-Phase1..4 scripts.
 #
-# TODO: confirm values from the DC02 (BAC) Phase scripts — the ones that
-# "start with BAC" — once provided. The partner IP 172.16.129.20 is taken from
-# NWA-DC-01's AlternateDns / PeerDcIp; the rest below is provisional.
+# ⚠️ NAME DISCREPANCY TO CONFIRM:
+#   - The design diagram / inventory call this host BAC-DC-01.
+#   - The DC02 scripts rename the computer to  BAC-DC-02.
+#   win_base_hostname below follows the SCRIPT (BAC-DC-02). If the diagram name
+#   is canonical, change it to "BAC-DC-01" (and consider renaming the inventory
+#   alias). Flagged for you to decide.
 
 ansible_host: 172.16.129.20
 
-# windows-base (Phase 1 baseline)
-win_base_hostname: "BAC-DC-01"
+# windows-base (DC02 Phase 1 baseline)
+win_base_hostname: "BAC-DC-02"        # see discrepancy note above
 win_base_static_ip: "172.16.129.20"
-win_base_prefix_length: 22            # TODO confirm
-win_base_gateway: "172.16.129.1"      # TODO confirm
+win_base_prefix_length: 22            # 255.255.252.0 (same /22 as NWA-DC-01)
+win_base_gateway: "172.16.128.1"
 win_base_dns_servers:
-  - "172.16.128.10"                   # point at existing DC first to find the domain
+  - "172.16.128.10"                   # DC01 first (needed to find the domain)
   - "172.16.129.20"                   # self
 
-# active-directory — additional DC (join, do not create forest)
+# active-directory — additional DC (joins + promotes, does not create a forest)
 ad_is_forest_root: false
+ad_site_name: ""                      # optional AD site, e.g. "BAC"
+# Domain admin credentials for the join/promotion (provide via vault):
 # ad_domain_admin_user: "BPA-BNW\\Administrator"
-# ad_domain_admin_password: "{{ vault_ad_domain_admin_password }}"   # via vault
+# ad_domain_admin_password: "{{ vault_ad_domain_admin_password }}"

@@ -14,6 +14,8 @@
     reboot: true
   when: ad_is_forest_root | bool
 
+# The module handles the domain join AND promotion in one step, replacing the
+# separate DC02 Phase 2 (Add-Computer) + Phase 3 (Install-ADDSDomainController).
 - name: Add as an additional Domain Controller to the existing domain
   microsoft.ad.domain_controller:
     dns_domain_name: "{{ ad_domain_name }}"
@@ -21,6 +23,10 @@
     domain_admin_password: "{{ ad_domain_admin_password }}"
     safe_mode_password: "{{ ad_safe_mode_password }}"
     install_dns: "{{ ad_install_dns }}"
+    database_path: "{{ ad_database_path }}"
+    log_path: "{{ ad_log_path }}"
+    sysvol_path: "{{ ad_sysvol_path }}"
+    site_name: "{{ ad_site_name | default(omit, true) }}"
     state: domain_controller
     reboot: true
   when: not (ad_is_forest_root | bool)

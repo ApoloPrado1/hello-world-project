@@ -18,6 +18,7 @@ little as possible: only the layer that *creates* those six hosts differs
 | --- | --- |
 | [`docs/TEAM_OVERVIEW.md`](docs/TEAM_OVERVIEW.md) | One-page briefing for the team — start here |
 | [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) | Step-by-step setup: Ubuntu control node, WinRM, first playbook |
+| [`docs/TEMPLATE_PREP.md`](docs/TEMPLATE_PREP.md) | Preparing the sysprepped WS2025 template and making clones WinRM-reachable |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full architecture: deployment model, Purdue model, site topology, compute inventory, naming, automation, Studio 5000 context |
 | [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) | Continuity document — decisions, assumptions, lessons learned, roadmap |
 

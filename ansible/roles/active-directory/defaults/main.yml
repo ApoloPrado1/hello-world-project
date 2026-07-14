@@ -24,7 +24,10 @@ ad_features:
   - GPMC
   - RSAT-AD-Tools
 
-# Finalisation (Phase 3)
+# Additional-DC options (used only when ad_is_forest_root is false)
+ad_site_name: ""                   # optional AD site, e.g. "BAC"
+
+# Finalisation (Phase 3 / DC02 Phase 4)
 ad_configure_ntp: true
 ad_ntp_peers:
   - "0.uk.pool.ntp.org,0x8"
