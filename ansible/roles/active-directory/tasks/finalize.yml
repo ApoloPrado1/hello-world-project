@@ -5,10 +5,13 @@
 # - Hyper-V guests: the host disables the "Time Synchronization" integration
 #   service (see the hyperv role).
 # - ESXi-direct VMs (current interim setup): disable VMware Tools time sync here.
-- name: Disable VMware Tools time sync (only if VMware Tools is present)
+- name: Disable VMware Tools time sync (registry method, only if VMware Tools present)
   ansible.windows.win_shell: |
-    $cmd = 'C:\Program Files\VMware\VMware Tools\VMwareToolboxCmd.exe'
-    if (Test-Path $cmd) { & $cmd timesync disable }
+    if (Get-Service -Name 'VMTools' -ErrorAction SilentlyContinue) {
+      New-Item -Path 'HKLM:\SOFTWARE\VMware, Inc.\VMware Tools' -Force | Out-Null
+      New-ItemProperty -Path 'HKLM:\SOFTWARE\VMware, Inc.\VMware Tools' -Name 'DisableTimeSync' -Value 1 -PropertyType DWord -Force | Out-Null
+      Restart-Service -Name 'VMTools' -ErrorAction SilentlyContinue
+    }
   changed_when: false
   when: ad_disable_vmware_timesync | bool
 

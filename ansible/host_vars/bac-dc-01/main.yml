@@ -2,17 +2,14 @@
 # Second Domain Controller (partner) in the BPA-BNW.net forest.
 # Values taken from the validated Configure-DC02-Phase1..4 scripts.
 #
-# ⚠️ NAME DISCREPANCY TO CONFIRM:
-#   - The design diagram / inventory call this host BAC-DC-01.
-#   - The DC02 scripts rename the computer to  BAC-DC-02.
-#   win_base_hostname below follows the SCRIPT (BAC-DC-02). If the diagram name
-#   is canonical, change it to "BAC-DC-01" (and consider renaming the inventory
-#   alias). Flagged for you to decide.
+# NOTE: the DC02 scripts rename the computer to BAC-DC-02, but that is an error —
+# the canonical name is BAC-DC-01 (per the design diagram and naming convention).
+# Corrected here.
 
 ansible_host: 172.16.129.20
 
 # windows-base (DC02 Phase 1 baseline)
-win_base_hostname: "BAC-DC-02"        # see discrepancy note above
+win_base_hostname: "BAC-DC-01"        # script said BAC-DC-02 (wrong); corrected
 win_base_static_ip: "172.16.129.20"
 win_base_prefix_length: 22            # 255.255.252.0 (same /22 as NWA-DC-01)
 win_base_gateway: "172.16.128.1"

@@ -66,12 +66,24 @@
   changed_when: false
   when: win_base_allow_icmp | bool
 
-- name: Show file extensions in Explorer (cosmetic, current user)
+- name: Show file extensions in Explorer (current user)
   ansible.windows.win_regedit:
     path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
     name: HideFileExt
     data: 0
     type: dword
+
+- name: Show file extensions for future users (default profile hive)
+  ansible.windows.win_shell: |
+    $hive = 'C:\Users\Default\NTUSER.DAT'
+    if (Test-Path $hive) {
+      reg load HKU\TempDefault $hive | Out-Null
+      New-Item -Path 'Registry::HKEY_USERS\TempDefault\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Force | Out-Null
+      New-ItemProperty -Path 'Registry::HKEY_USERS\TempDefault\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'HideFileExt' -Value 0 -PropertyType DWord -Force | Out-Null
+      [gc]::Collect(); Start-Sleep -Seconds 1
+      reg unload HKU\TempDefault | Out-Null
+    }
+  changed_when: false
 
 - name: Rename the machine (triggers a reboot when changed)
   ansible.windows.win_hostname:

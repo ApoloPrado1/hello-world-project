@@ -13,7 +13,14 @@
   ansible.windows.win_reboot:
   when: ad_features_result.reboot_required
 
-- name: Disable "Server Manager opens at logon" for all users
+- name: Disable "Server Manager opens at logon" — machine policy (all users)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\ServerManager
+    name: DoNotOpenServerManagerAtLogon
+    data: 1
+    type: dword
+
+- name: Disable "Server Manager opens at logon" — scheduled task
   ansible.windows.win_shell: |
     Disable-ScheduledTask -TaskName 'ServerManager' -TaskPath '\Microsoft\Windows\Server Manager\' -ErrorAction SilentlyContinue | Out-Null
   changed_when: false
