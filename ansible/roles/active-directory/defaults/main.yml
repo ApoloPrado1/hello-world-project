@@ -1,10 +1,38 @@
 ---
-# active-directory — promotes a guest VM to a Domain Controller.
+# active-directory — installs AD DS and makes this guest a Domain Controller.
+# Folds the previous manual Phase 1/2/3 PowerShell scripts into one role.
 # This is the first application workload: everything domain-joined depends on it.
 
-ad_domain_name: "otlab.local"
-ad_domain_netbios: "OTLAB"
+# Forest / domain identity
+ad_domain_name: "BPA-BNW.net"
+ad_domain_netbios: "BPA-BNW"
 
-# ad_safe_mode_password MUST be provided via an encrypted vault variable, e.g.
-# in group_vars/domain_controllers/vault.yml. Never commit it in plain text.
-# ad_safe_mode_password: "{{ vault_ad_safe_mode_password }}"
+# Is THIS host the first DC (creates the forest)? Additional DCs set this false
+# and join the existing domain instead. Set per host in host_vars.
+ad_is_forest_root: false
+
+# Directory service paths (Phase 2 values)
+ad_install_dns: true
+ad_database_path: 'C:\Windows\NTDS'
+ad_log_path: 'C:\Windows\NTDS'
+ad_sysvol_path: 'C:\Windows\SYSVOL'
+
+# Windows features to install (Phase 1)
+ad_features:
+  - AD-Domain-Services
+  - DNS
+  - GPMC
+  - RSAT-AD-Tools
+
+# Finalisation (Phase 3)
+ad_configure_ntp: true
+ad_ntp_peers:
+  - "0.uk.pool.ntp.org,0x8"
+  - "1.uk.pool.ntp.org,0x8"
+ad_disable_vmware_timesync: true   # only acts if VMware Tools is present
+
+# Secrets — provide via an encrypted vault file, never in plain text:
+#   ad_safe_mode_password: "{{ vault_ad_safe_mode_password }}"   # DSRM password
+# For an ADDITIONAL DC (ad_is_forest_root: false) also provide:
+#   ad_domain_admin_user: "BPA-BNW\\Administrator"
+#   ad_domain_admin_password: "{{ vault_ad_domain_admin_password }}"

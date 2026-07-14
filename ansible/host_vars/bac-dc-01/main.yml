@@ -1,0 +1,23 @@
+---
+# BAC-DC-01 — second Domain Controller (partner) in the BPA-BNW.net forest.
+# This host JOINS the existing domain (it does not create a forest).
+#
+# TODO: confirm values from the DC02 (BAC) Phase scripts — the ones that
+# "start with BAC" — once provided. The partner IP 172.16.129.20 is taken from
+# NWA-DC-01's AlternateDns / PeerDcIp; the rest below is provisional.
+
+ansible_host: 172.16.129.20
+
+# windows-base (Phase 1 baseline)
+win_base_hostname: "BAC-DC-01"
+win_base_static_ip: "172.16.129.20"
+win_base_prefix_length: 22            # TODO confirm
+win_base_gateway: "172.16.129.1"      # TODO confirm
+win_base_dns_servers:
+  - "172.16.128.10"                   # point at existing DC first to find the domain
+  - "172.16.129.20"                   # self
+
+# active-directory — additional DC (join, do not create forest)
+ad_is_forest_root: false
+# ad_domain_admin_user: "BPA-BNW\\Administrator"
+# ad_domain_admin_password: "{{ vault_ad_domain_admin_password }}"   # via vault

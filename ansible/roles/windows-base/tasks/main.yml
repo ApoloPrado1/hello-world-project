@@ -1,9 +1,41 @@
 ---
 # windows-base — baseline settings common to all Windows hosts and guests.
+# Mirrors the "Phase 1" baseline that was previously a manual PowerShell script.
 
 - name: Set timezone
   community.windows.win_timezone:
     timezone: "{{ win_base_timezone }}"
+
+- name: Set static IPv4 on the primary adapter (no-op if already set)
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $ip = '{{ win_base_static_ip }}'; $prefix = {{ win_base_prefix_length }}; $gw = '{{ win_base_gateway }}'
+      $alias = (Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface -eq $true } |
+                Sort-Object ifIndex | Select-Object -First 1).Name
+      if (-not $alias) { throw 'No active physical network adapter found.' }
+      $current = (Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress
+      if ($current -ne $ip) {
+        Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -EA SilentlyContinue | Remove-NetIPAddress -Confirm:$false -EA SilentlyContinue
+        Remove-NetRoute -InterfaceAlias $alias -Confirm:$false -EA SilentlyContinue
+        New-NetIPAddress -InterfaceAlias $alias -IPAddress $ip -PrefixLength $prefix -DefaultGateway $gw | Out-Null
+        $Ansible.Changed = $true
+      } else { $Ansible.Changed = $false }
+  when: win_base_static_ip | length > 0
+
+- name: Set DNS servers on the primary interface
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $alias = (Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface -eq $true } |
+                Sort-Object ifIndex | Select-Object -First 1).Name
+      $desired = @({{ win_base_dns_servers | map('regex_replace', '^(.*)$', "'\1'") | join(',') }})
+      $current = (Get-DnsClientServerAddress -InterfaceAlias $alias -AddressFamily IPv4).ServerAddresses
+      if (($current -join ',') -ne ($desired -join ',')) {
+        Set-DnsClientServerAddress -InterfaceAlias $alias -ServerAddresses $desired
+        $Ansible.Changed = $true
+      } else { $Ansible.Changed = $false }
+  when: win_base_dns_servers | length > 0
 
 - name: Configure NTP time source
   ansible.windows.win_shell: |
@@ -11,13 +43,6 @@
     Restart-Service w32time
     w32tm /resync
   changed_when: false
-
-- name: Set DNS servers on the primary interface
-  ansible.windows.win_dns_client:
-    adapter_names:
-      - "{{ win_base_dns_interface }}"
-    dns_servers: "{{ win_base_dns_servers }}"
-  when: win_base_dns_servers | length > 0
 
 - name: Enable Remote Desktop
   ansible.windows.win_regedit:
@@ -40,3 +65,22 @@
     }
   changed_when: false
   when: win_base_allow_icmp | bool
+
+- name: Show file extensions in Explorer (cosmetic, current user)
+  ansible.windows.win_regedit:
+    path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+    name: HideFileExt
+    data: 0
+    type: dword
+
+- name: Rename the machine (triggers a reboot when changed)
+  ansible.windows.win_hostname:
+    name: "{{ win_base_hostname }}"
+  register: win_base_rename
+  when: win_base_hostname | length > 0
+
+- name: Reboot after rename
+  ansible.windows.win_reboot:
+  when:
+    - win_base_hostname | length > 0
+    - win_base_rename.reboot_required | default(false)

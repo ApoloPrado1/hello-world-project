@@ -1,17 +1,26 @@
 ---
 # Baseline configuration applied to every Windows machine (hosts and guests).
 
+# Identity — rename the machine. Empty string = leave the current name.
+win_base_hostname: ""
+
+# Static IPv4. Empty string = leave networking as-is (DHCP / template default).
+# NOTE: the machine must already be reachable at `ansible_host`; when
+# win_base_static_ip == the address Ansible connects on, this is a no-op.
+# Only set a *different* address on the console, never remotely (it drops WinRM).
+win_base_static_ip: ""
+win_base_prefix_length: 24
+win_base_gateway: ""
+
 # Time
 win_base_timezone: "GMT Standard Time"
 win_base_ntp_servers:
-  - "0.pool.ntp.org"
-  - "1.pool.ntp.org"
+  - "0.uk.pool.ntp.org"
+  - "1.uk.pool.ntp.org"
 
 # Remote management / access
 win_base_enable_rdp: true
 win_base_allow_icmp: true          # handy for lab connectivity tests
 
-# Optional: DNS servers to set on the primary interface.
-# Leave empty to skip (guests usually point at the domain controller).
+# DNS servers to set on the primary interface. Empty = skip.
 win_base_dns_servers: []
-win_base_dns_interface: "Ethernet"

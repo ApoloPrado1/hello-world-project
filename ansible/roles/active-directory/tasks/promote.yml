@@ -1,0 +1,26 @@
+---
+# Phase 2 — create the forest (first DC) or join it as an additional DC.
+# The microsoft.ad modules are idempotent and handle the reboot themselves.
+
+- name: Promote as the first Domain Controller in a new forest
+  microsoft.ad.domain:
+    dns_domain_name: "{{ ad_domain_name }}"
+    domain_netbios_name: "{{ ad_domain_netbios }}"
+    safe_mode_password: "{{ ad_safe_mode_password }}"
+    install_dns: "{{ ad_install_dns }}"
+    database_path: "{{ ad_database_path }}"
+    log_path: "{{ ad_log_path }}"
+    sysvol_path: "{{ ad_sysvol_path }}"
+    reboot: true
+  when: ad_is_forest_root | bool
+
+- name: Add as an additional Domain Controller to the existing domain
+  microsoft.ad.domain_controller:
+    dns_domain_name: "{{ ad_domain_name }}"
+    domain_admin_user: "{{ ad_domain_admin_user }}"
+    domain_admin_password: "{{ ad_domain_admin_password }}"
+    safe_mode_password: "{{ ad_safe_mode_password }}"
+    install_dns: "{{ ad_install_dns }}"
+    state: domain_controller
+    reboot: true
+  when: not (ad_is_forest_root | bool)

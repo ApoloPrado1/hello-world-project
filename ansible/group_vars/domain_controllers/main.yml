@@ -1,13 +1,23 @@
 ---
-# Domain-wide settings for the Domain Controllers.
-# Keep the safe-mode password in an encrypted vault file alongside this one:
+# Domain-wide settings for all Domain Controllers (forest: BPA-BNW.net).
+# Keep secrets in an encrypted vault file alongside this one:
 #   ansible-vault create group_vars/domain_controllers/vault.yml
-# and set:  vault_ad_safe_mode_password: "..."
+# and set:
+#   vault_ad_safe_mode_password: "..."          # DSRM password
+#   vault_ad_domain_admin_password: "..."       # for additional DCs joining
 
-ad_domain_name: "otlab.local"
-ad_domain_netbios: "OTLAB"
+ad_domain_name: "BPA-BNW.net"
+ad_domain_netbios: "BPA-BNW"
+
 ad_safe_mode_password: "{{ vault_ad_safe_mode_password }}"
 
-# A DC is its own DNS server; point it at itself (loopback).
-win_base_dns_servers:
-  - "127.0.0.1"
+ad_install_dns: true
+ad_database_path: 'C:\Windows\NTDS'
+ad_log_path: 'C:\Windows\NTDS'
+ad_sysvol_path: 'C:\Windows\SYSVOL'
+
+ad_configure_ntp: true
+ad_ntp_peers:
+  - "0.uk.pool.ntp.org,0x8"
+  - "1.uk.pool.ntp.org,0x8"
+ad_disable_vmware_timesync: true

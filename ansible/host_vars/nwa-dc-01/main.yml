@@ -1,0 +1,17 @@
+---
+# NWA-DC-01 — first Domain Controller / forest root of BPA-BNW.net.
+# Values taken from the validated Configure-DC01-Phase1/2/3 scripts.
+
+ansible_host: 172.16.128.10
+
+# windows-base (Phase 1 baseline)
+win_base_hostname: "NWA-DC-01"
+win_base_static_ip: "172.16.128.10"
+win_base_prefix_length: 22            # 255.255.252.0
+win_base_gateway: "172.16.128.1"
+win_base_dns_servers:
+  - "172.16.128.10"                   # self
+  - "172.16.129.20"                   # partner DC (BAC-DC-01)
+
+# active-directory
+ad_is_forest_root: true
