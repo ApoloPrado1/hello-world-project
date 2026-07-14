@@ -3,8 +3,14 @@
 An OT (Operational Technology) cyber-security and industrial automation
 laboratory, built with Infrastructure as Code so that both sites — **NWA**
 (primary) and **BAC** (secondary) — are reproducible from version-controlled
-source. Segmentation follows the Purdue reference model; automation flows
-`Git → Terraform → ESXi → Hyper-V → Windows → Rockwell`.
+source. Segmentation follows the Purdue reference model.
+
+The lab is built **now on a development ESXi server** — six Windows Server 2025
+VMs (with nested Hyper-V) stand in for the six **physical** servers that arrive
+later. The IaC is structured by role so the move to real hardware changes as
+little as possible: only the layer that *creates* those six hosts differs
+(Terraform/ESXi in the lab, bare-metal in production). See
+[`docs/ARCHITECTURE.md §3`](docs/ARCHITECTURE.md#3-deployment-model--reference-physical-vs-lab-esxi-nested).
 
 ## Documentation
 

@@ -56,17 +56,38 @@ mkdir -p ~/ot-lab/software
 | UNC paths over mapped drives | Mapped letters are unreliable across WinRM sessions |
 | No separate roles for FactoryTalk Linx / Activation Manager / ControlFLASH | They install as part of Studio 5000 |
 | Studio 5000 installed with `/QS /IAcceptAllLicenseTerms /AutoRestart` only | `/Product=` example from installer help does not work for this media |
+| **Lab = 6x WS2025 VMs on one ESXi dev server (nested Hyper-V); production = 6 physical servers** | Build and validate now, before the physical hardware arrives |
+| **Isolate the "create the VH" layer** (Terraform/ESXi in lab, bare-metal in prod) | Everything above it is identical Ansible → minimal-change migration |
+| **Two install layers: host (WS2025) vs guest (Hyper-V VMs)** | e.g. EPP installs on the host; SCADA/AD/Historian install inside the VMs |
 
 ---
 
-## 4. Assumptions
+## 4. Confirmed deployment model
 
-- ESXi underpins the environment; Hyper-V hosts run as VMs on ESXi and in turn
-  host the Windows workloads.
+Confirmed with the project owner (not an assumption):
+
+- **Target (final):** six **physical** servers — one per dashed host box in the
+  design diagram (`NWA-VH-01..04`, `BAC-VH-01/02`). Each runs Windows Server 2025
+  with the **Hyper-V role bare-metal**; OT workloads run as Hyper-V VMs inside.
+- **Now (lab):** one **development ESXi** server. On it, **six WS2025 VMs** stand
+  in for the six physical servers, each with **Hyper-V enabled (nested)**; the
+  workload VMs run inside that nested Hyper-V.
+- **Two software layers:** some software installs on the **WS2025 host** itself
+  (e.g. Endpoint Protection and other host-level agents); the rest installs
+  **inside the Hyper-V VMs**.
+- **Goal:** IaC structured by role so moving from the ESXi lab to the physical
+  hardware is as close to a no-op as possible — only the layer that *creates* the
+  six `VH` machines changes.
+
+### Standing assumptions
+
 - Windows Server 2025 for servers; Windows 11 Pro for workstations/clients.
 - Current software repo is the VMware shared folder; production will be a file
   server (`NWA-FILE-01` / `BAC-FILE-01`).
-- `BAC-VH-02` is defined in the plan but not yet provisioned (0 cores/RAM/storage).
+- `BAC-VH-02` exists in the design (hosts `BAC-IDS-01` / `BAC-SEM-01`) but is not
+  yet sized in the capacity plan (0/0/0 — TBD).
+- Field-device names corrected per diagram: `NWA-LVL-01/02` (not `LVI`); added
+  `NWA-GW-02` and `NWA-VRU-01`. `BAC-SW-02` shown in L1 per the diagram.
 
 ---
 
@@ -95,4 +116,4 @@ mkdir -p ~/ot-lab/software
 - ⏳ Next: complete the `studio5000` role, then extend the same pattern to the
   remaining software packages, then the `hyperv` role (Roadmap Phases 1–2).
 
-See the Roadmap table in [`ARCHITECTURE.md`](ARCHITECTURE.md#11-roadmap).
+See the Roadmap table in [`ARCHITECTURE.md`](ARCHITECTURE.md#12-roadmap).

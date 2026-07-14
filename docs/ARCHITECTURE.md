@@ -10,15 +10,17 @@
 ## 1. Objective
 
 Build a complete OT (Operational Technology) cyber-security and industrial
-automation laboratory that is fully reproducible from code. Both sites (**NWA**
-and **BAC**) should ultimately be deployable end-to-end from version-controlled
-source, following the ISA-95 / Purdue reference model for network segmentation.
+automation laboratory that is fully reproducible from code. The lab is being
+built **now, virtualised on a development ESXi server**, to stand in for **six
+physical servers** that will arrive later. The whole point of doing it as
+Infrastructure as Code is to make the eventual move from the virtual lab to the
+real hardware as close to a no-op as possible.
 
 The environment combines:
 
 | Domain | Technologies |
 | --- | --- |
-| Virtualisation | VMware ESXi, Microsoft Hyper-V |
+| Virtualisation | VMware ESXi (lab base), Microsoft Hyper-V (on each server) |
 | Operating systems | Windows Server 2025, Windows 11 Pro, Ubuntu Linux |
 | Industrial automation | Rockwell Automation Studio 5000, FactoryTalk suite |
 | Network / security | Cisco (switching), FortiGate & OPSWAT (firewalls), EVE-NG (virtual network lab) |
@@ -28,8 +30,8 @@ The environment combines:
 
 ## 2. Purdue Model Overview
 
-The architecture is segmented into the standard Purdue levels. Each site
-maps its assets onto these levels.
+The architecture is segmented into the standard Purdue levels. Each site maps
+its assets onto these levels.
 
 ```mermaid
 flowchart TB
@@ -54,9 +56,77 @@ flowchart TB
 
 ---
 
-## 3. Automation Architecture
+## 3. Deployment Model — Reference (physical) vs Lab (ESXi nested)
 
-The primary automation host is **NWA-AUTO-01** (Ubuntu Linux). It is the single
+The **logical architecture is identical** in both phases; only the bottom layer
+(how the six "VH" servers exist) differs. This separation is the core design
+goal: migrating from lab to production must change as little as possible.
+
+### 3.1 Target (final hardware)
+
+Six **physical servers** — one per dashed "host" box in the design diagram:
+
+`NWA-VH-01`, `NWA-VH-02`, `NWA-VH-03`, `NWA-VH-04`, `BAC-VH-01`, `BAC-VH-02`.
+
+Each physical server runs **Windows Server 2025 with the Hyper-V role
+(bare-metal)**. The OT workloads run as **Hyper-V virtual machines inside** each
+server.
+
+### 3.2 Lab (current — development ESXi server)
+
+One development server running **VMware ESXi**. On top of it we create **six
+Windows Server 2025 VMs** that emulate the six physical servers. Each of those
+VMs has **Hyper-V enabled (nested virtualisation)**, and the OT workload VMs run
+inside that nested Hyper-V.
+
+```mermaid
+flowchart TB
+    subgraph ESXi["Development server — VMware ESXi (lab only)"]
+        subgraph VH1["NWA-VH-01 (WS2025 + Hyper-V, nested)"]
+            direction TB
+            DC1["NWA-DC-01 (VM)"]
+            SS1["NWA-SS-01 (VM)"]
+        end
+        subgraph VH2["NWA-VH-02 (WS2025 + Hyper-V, nested)"]
+            HIST["NWA-HIST-01 (VM)"]
+            REP["NWA-REP-01 (VM)"]
+            ACS["NWA-ACS-01 (VM)"]
+        end
+        VHx["... NWA-VH-03/04, BAC-VH-01/02 ..."]
+    end
+```
+
+> In production, ESXi disappears and each `VH` box becomes a physical server.
+> Everything **inside** a `VH` box stays exactly the same.
+
+### 3.3 Two software layers
+
+Software is installed at one of two layers, and roles are written accordingly:
+
+| Layer | Where it runs | Examples |
+| --- | --- | --- |
+| **Host layer** | Directly on the Windows Server 2025 host (the `VH`) | Endpoint Protection (EPP), base OS hardening, Hyper-V role, monitoring/backup agents |
+| **Guest layer** | Inside the Hyper-V VMs on that host | Domain Controller, SCADA, Historian, AssetCentre, Studio 5000, View Designer |
+
+### 3.4 What changes between lab and production
+
+| Layer | Lab | Production | Same roles? |
+| --- | --- | --- | --- |
+| Create the 6 `VH` machines | Terraform → ESXi VMs | Bare-metal / imaging | ❌ only this layer changes |
+| Enable Hyper-V + host software | Ansible | Ansible | ✅ identical |
+| Create & configure nested/guest VMs | Ansible | Ansible | ✅ identical |
+| Install app software in VMs | Ansible | Ansible | ✅ identical |
+| Network: firewalls & switches | Ansible | Ansible | ✅ identical |
+
+**Design rule:** keep the "create the VH" step isolated in its own layer
+(Terraform + a thin variable set) so swapping ESXi for physical hardware touches
+only that layer.
+
+---
+
+## 4. Automation Architecture
+
+The primary automation host is **NWA-AUTO-01** (Ubuntu Linux) — the single
 control point for all Infrastructure-as-Code operations.
 
 ```mermaid
@@ -69,89 +139,101 @@ flowchart LR
         REPO[Software repository access]
     end
 
-    GIT --> TF --> ESXi
-    ANS --> WIN[Windows workloads via WinRM]
-    ESXi --> HV[Hyper-V hosts]
-    HV --> WIN
+    TF -->|lab only| ESXi[ESXi dev server]
+    ESXi --> VH[6x WS2025 hosts]
+    ANS -->|WinRM| VH
+    VH --> HV[Nested Hyper-V + guest VMs]
+    ANS -->|SSH/API| NET[Cisco / FortiGate / OPSWAT]
 ```
 
 **NWA-AUTO-01 responsibilities**
 
-- Ansible control node (Windows managed over WinRM)
-- Terraform execution node (ESXi provisioning)
+- Ansible control node (Windows managed over WinRM; network gear over SSH/API)
+- Terraform execution node (creates the six WS2025 VMs on the ESXi dev server)
 - Git repository / documentation repository
 - Software repository access
 
 ### Ultimate deployment flow
 
 ```
-Git → Terraform → ESXi → Hyper-V Hosts → Network Infrastructure
-      (Cisco / FortiGate / OPSWAT) → Windows Servers → Rockwell Applications
-      → Fully automated NWA / BAC OT environment
+Git → Terraform → ESXi (lab) → 6x WS2025 hosts → enable Hyper-V
+    → guest VMs → Windows servers → Rockwell applications
+    → network config (Cisco / FortiGate / OPSWAT)
+    → Fully automated NWA / BAC OT environment
 ```
 
 ---
 
-## 4. Site Topology
+## 5. Site Topology
 
-### 4.1 NWA (Main Site)
+Component names and grouping are taken from the design diagram (BPA/BNW SCADA
+sheets 4 & 5). Location/zone codes from the diagram are intentionally omitted
+here.
+
+### 5.1 NWA (Main Site)
 
 ```
 NWA
 ├── L4-5 Enterprise/Corporate
-│   └── NWA-RTR-01
+│   ├── NWA-RTR-01 (router)
+│   └── Corporate WAN / BT WAN / Internet
 ├── L3.5 Industrial DMZ
-│   ├── NWA-DMZ-01
-│   ├── NWA-FW-03 (FortiGate)
-│   ├── NWA-SRA-01
-│   └── NWA-VH-04
+│   ├── NWA-DMZ-01  (guest VM on NWA-VH-04)
+│   ├── NWA-VH-04   (host)
+│   ├── NWA-FW-03   (FortiGate, deep packet inspection)
+│   └── NWA-SRA-01  (secure remote access)
 ├── L3 Operations
-│   ├── Infrastructure: NWA-FW-02 (FortiGate), NWA-SW-03, NWA-NTP-01, NWA-NAS-01, NWA-LDS-01
-│   ├── Security:       NWA-IDS-01, NWA-IDS-02, NWA-EPP-01, NWA-SEM-01, NWA-NPM-01, NWA-NPM-02
-│   ├── Applications:   NWA-HIST-01, NWA-ACS-01, NWA-REP-01
-│   └── Hyper-V hosts:  NWA-VH-02, NWA-VH-03
+│   ├── Infrastructure: NWA-GW-02, NWA-FW-02 (FortiGate), NWA-SW-03, NWA-NTP-01, NWA-NAS-01, NWA-VRU-01, NWA-LDS-01
+│   ├── Security (on NWA-VH-03): NWA-IDS-01, NWA-IDS-02, NWA-EPP-01, NWA-SEM-01, NWA-NPM-01, NWA-NPM-02
+│   ├── Applications (on NWA-VH-02): NWA-HIST-01, NWA-ACS-01, NWA-REP-01
+│   └── Hosts: NWA-VH-02, NWA-VH-03
 ├── L2 Supervisory Control
-│   ├── Infrastructure: NWA-FW-01 (OPSWAT), NWA-SW-02, NWA-SW-01
-│   ├── Hyper-V host:   NWA-VH-01
-│   ├── VMs:            NWA-DC-01, NWA-SS-01
-│   ├── Workstations:   NWA-EWS-01, NWA-OWS-01, NWA-OWS-02
-│   └── Engineering:    NWA-PTR-01
+│   ├── Infrastructure: NWA-FW-01 (OPSWAT, DPI), NWA-SW-02, NWA-SW-01
+│   ├── Host: NWA-VH-01
+│   ├── Guest VMs (on NWA-VH-01): NWA-DC-01, NWA-SS-01
+│   ├── Workstations: NWA-EWS-01, NWA-OWS-01, NWA-OWS-02
+│   └── Engineering: NWA-PTR-01 (printer)
 ├── L1 Basic Control
 │   └── NWA-GW-01, NWA-PLC-01, NWA-SFT-01, NWA-RIO-01, NWA-RIO-02, NWA-UPS-01
 └── L0 Physical Process
-    └── NWA-FLC-01, NWA-LVI-01, NWA-LVI-02
+    └── NWA-FLC-01, NWA-LVL-01, NWA-LVL-02
 ```
 
-### 4.2 BAC (Secondary Site)
+### 5.2 BAC (Secondary Site)
 
 ```
 BAC
 ├── L4-5 Enterprise/Corporate
-│   └── BT WAN
+│   └── BT WAN (cross-links to NWA)
 ├── L3 Operations
 │   ├── Infrastructure: BAC-FW-02 (FortiGate), BAC-SW-05, BAC-NAS-01
-│   ├── Security:       BAC-IDS-01, BAC-SEM-01
-│   └── Hyper-V host:   BAC-VH-02
+│   ├── Security (on BAC-VH-02): BAC-IDS-01, BAC-SEM-01
+│   └── Host: BAC-VH-02
 ├── L2 Supervisory Control
-│   ├── Infrastructure: BAC-FW-01 (OPSWAT), BAC-SW-04, BAC-SW-02
-│   ├── Hyper-V host:   BAC-VH-01
-│   ├── VMs:            BAC-DC-01, BAC-SS-01
-│   └── Workstations:   BAC-OWS-01, BAC-OWS-02
+│   ├── Infrastructure: BAC-FW-01 (OPSWAT, DPI), BAC-SW-04
+│   ├── Host: BAC-VH-01
+│   ├── Guest VMs (on BAC-VH-01): BAC-DC-01, BAC-SS-01
+│   └── Workstations: BAC-OWS-01, BAC-OWS-02
 ├── L1 Basic Control
-│   └── BAC-BRG-01..05, BAC-SW-01, BAC-SW-03, BAC-RIO-01..03, BAC-SFT-01, BAC-PLC-01..03, BAC-UPS-01
+│   └── BAC-BRG-01..05, BAC-SW-01, BAC-SW-02, BAC-SW-03, BAC-RIO-01..03, BAC-SFT-01, BAC-PLC-01..03, BAC-UPS-01
 └── L0 Physical Process
     └── BAC-FLC-01
 ```
 
+> **To confirm:** the diagram places `BAC-SW-02` in L1 (`+BAC.LVPS`); an earlier
+> note had it in L2. Listed under L1 here to match the diagram.
+
 ---
 
-## 5. Compute Inventory
+## 6. Compute Inventory
 
 Sizing is taken from the current SCADA capacity plan. Storage and RAM are in GB.
+The six **Virtualisation Hosts** are the six machines that are physical in
+production and WS2025-on-ESXi in the lab.
 
-### 5.1 Virtual Machines
+### 6.1 Guest VMs (run inside Hyper-V)
 
-| Functional Description | Host Name | OS | Hosted On | Cores | RAM | Storage |
+| Functional Description | Host Name | OS | Runs On (host) | Cores | RAM | Storage |
 | --- | --- | --- | --- | --: | --: | --: |
 | SCADA Server | NWA-SS-01 | Windows Server 2025 | NWA-VH-01 | 12 | 32 | 99 |
 | Active Directory | NWA-DC-01 | Windows Server 2025 | NWA-VH-01 | 2 | 8 | 99 |
@@ -161,13 +243,13 @@ Sizing is taken from the current SCADA capacity plan. Storage and RAM are in GB.
 | SCADA Client (OWS) | NWA-OWS-01 | Windows 11 Pro | — | 2 | 8 | 64 |
 | SCADA Client (OWS) | NWA-OWS-02 | Windows 11 Pro | — | 2 | 8 | 64 |
 | Engineering Workstation | NWA-EWS-01 | Windows 11 Pro | — | 2 | 8 | 64 |
-| DMZ Workstation | NWA-DMZ-01 | Windows 11 Pro | — | 2 | 8 | 64 |
+| DMZ Workstation | NWA-DMZ-01 | Windows 11 Pro | NWA-VH-04 | 2 | 8 | 64 |
 | SCADA Server | BAC-SS-01 | Windows Server 2025 | BAC-VH-01 | 12 | 32 | 99 |
 | Active Directory | BAC-DC-01 | Windows Server 2025 | BAC-VH-01 | 2 | 8 | 99 |
 | SCADA Client (OWS) | BAC-OWS-01 | Windows 11 Pro | — | 2 | 8 | 64 |
 | SCADA Client (OWS) | BAC-OWS-02 | Windows 11 Pro | — | 2 | 8 | 64 |
 
-### 5.2 Virtualisation Hosts
+### 6.2 Virtualisation Hosts (the six "VH" machines)
 
 | Functional Description | Host Name | OS | Cores | RAM | Storage |
 | --- | --- | --- | --: | --: | --: |
@@ -179,11 +261,12 @@ Sizing is taken from the current SCADA capacity plan. Storage and RAM are in GB.
 | BAC Management Virtualisation Host | BAC-VH-02 | Windows Server 2025 | 0 | 0 | 0 |
 
 > **Totals (allocated):** 50 cores · 152 GB RAM · 891 GB storage.
-> `BAC-VH-02` is defined but not yet provisioned (0/0/0).
+> `BAC-VH-02` exists in the design (it hosts `BAC-IDS-01` / `BAC-SEM-01`) but is
+> not yet sized in the capacity plan (0/0/0 — **TBD**).
 
 ---
 
-## 6. Naming Convention
+## 7. Naming Convention
 
 `<SITE>-<ROLE>-<NN>` — e.g. `NWA-EWS-01`, `BAC-OWS-01`, `NWA-HIST-01`.
 
@@ -196,14 +279,16 @@ Sizing is taken from the current SCADA capacity plan. Storage and RAM are in GB.
 | EWS | Engineering Workstation | EPP | Endpoint Protection |
 | OWS | Operator Workstation | SS | SCADA Server |
 
-Additional roles seen in the topology: `RTR` (router), `SRA` (secure remote
-access), `NTP` (time), `NAS` (storage), `LDS`, `NPM` (network performance
-monitor), `PTR` (printer), `GW` (gateway), `PLC` (controller), `SFT` (safety),
-`RIO` (remote I/O), `UPS`, `FLC`/`LVI` (field / level devices), `BRG` (bridge).
+Additional roles seen in the topology: `RTR` (router), `GW` (gateway),
+`SRA` (secure remote access), `NTP` (time), `NAS` (storage), `VRU`, `LDS`,
+`NPM` (network performance monitor), `PTR` (printer), `PLC` (controller),
+`SFT` (safety), `RIO` (remote I/O), `UPS`, `FLC`/`LVL` (field / level devices),
+`BRG` (bridge). Field/safety layers may also include `ESD` (emergency shutdown
+system) and `IO Rack` devices per the diagram legend.
 
 ---
 
-## 7. Ansible Inventory Groups
+## 8. Ansible Inventory Groups
 
 ```ini
 [hyperv_hosts]
@@ -236,9 +321,9 @@ ansible/
 ├── host_vars/
 ├── playbooks/
 └── roles/
-    ├── windows-base
-    ├── hyperv
-    ├── studio5000
+    ├── windows-base        # host + guest base config
+    ├── hyperv              # enable Hyper-V role, define switches, create guest VMs
+    ├── studio5000          # first software package (see §10)
     ├── active-directory
     ├── historian
     ├── assetcentre
@@ -247,12 +332,12 @@ ansible/
     ├── opswat
     ├── ids
     ├── siem
-    └── epp
+    └── epp                 # endpoint protection — installed on the HOST layer
 ```
 
 ---
 
-## 8. Software Repository Strategy
+## 9. Software Repository Strategy
 
 | Phase | Location |
 | --- | --- |
@@ -264,26 +349,30 @@ hard-coded path — so the source can move without editing every role.
 
 ---
 
-## 9. Software Installation Scope
+## 10. Software Installation Scope
 
-The lab requires **multiple** software packages to be installed and configured
-across the Windows estate (SCADA, historian, AssetCentre, engineering tooling,
-security agents, etc.). These will each be automated as their own Ansible role
-over time.
+The lab requires **multiple** software packages across the Windows estate. Each
+is automated as its own Ansible role, and each targets either the **host layer**
+or the **guest layer** (see §3.3):
 
-**Studio 5000 is the first package to be automated** — chosen as the starting
-point to prove out the unattended-install pattern (media staging over WinRM,
-UNC paths, silent switches, robocopy return-code handling). The same pattern
-will be reused for the remaining packages.
+- **Host layer** (on the WS2025 `VH`): Hyper-V role, Endpoint Protection (EPP),
+  base hardening, monitoring/backup agents.
+- **Guest layer** (inside the VMs): Active Directory, SCADA, Historian,
+  AssetCentre, Studio 5000, View Designer, IDS/SIEM sensors, etc.
 
-### 9.1 Studio 5000 (first automated package)
+**Studio 5000 is the first package to be automated** — chosen to prove out the
+unattended-install pattern (media staging over WinRM, UNC paths, silent
+switches, robocopy return-code handling). The same pattern is reused for the
+rest.
+
+### 10.1 Studio 5000 (first automated package)
 
 **Current deployment:** Studio 5000 Logix Designer **v38.02**
 **Media path:** `\\vmware-host\Shared Folders\RA\Studio5000\38.02.00-Studio5000-Web`
 
 The web media ships as a self-extracting `part1.exe` plus `part2..part7.rar`
 volumes. Extracted, it contains `38.02.00-Studio5000` and a bundled
-`12.00.00-CompareTool` (LogixDesignerCompareToolSetup.msi + Data1.cab).
+`12.00.00-CompareTool`.
 
 The installer XML identifies the package as `Product="Studio5000_V38.02"` and
 installs the full stack:
@@ -297,13 +386,11 @@ installs the full stack:
 - Compare Tool
 - Firmware Kits
 
-> Because these components are installed **as part of Studio 5000**, separate
-> Ansible roles are **not** required for FactoryTalk Linx, Activation Manager,
-> or ControlFLASH.
+> Because these components install **as part of Studio 5000**, separate Ansible
+> roles are **not** required for FactoryTalk Linx, Activation Manager, or
+> ControlFLASH.
 
 ### Validated unattended install
-
-The correct silent command for this media is:
 
 ```
 Setup.exe /QS /IAcceptAllLicenseTerms /AutoRestart
@@ -318,7 +405,7 @@ for the validated playbook.
 
 ---
 
-## 10. Lessons Learned
+## 11. Lessons Learned
 
 | Area | Finding |
 | --- | --- |
@@ -326,19 +413,20 @@ for the validated playbook.
 | Drive mapping | Mapped drive letters (e.g. `X:`) are **not** reliable across WinRM sessions — prefer UNC paths |
 | Robocopy | Exit codes 0–7 = success, 8+ = failure → `failed_when: copy_result.rc >= 8` |
 | WinRM | Validated for file copy, PowerShell execution, software deployment, and long-running installs |
+| Nested virtualisation | Hyper-V inside an ESXi VM requires "Expose hardware assisted virtualization" on the VM; keep the "create VH" step isolated so physical migration is trivial |
 
 ---
 
-## 11. Roadmap
+## 12. Roadmap
 
 | Phase | Deliverable |
 | --- | --- |
 | 1 | Complete Studio 5000 role (first of several software packages) |
-| 2 | Create Hyper-V role |
+| 2 | Create Hyper-V role (host layer: enable role, virtual switches, create guest VMs) |
 | 3 | Create Cisco switch automation |
 | 4 | Create FortiGate automation |
 | 5 | Deploy EVE-NG network lab |
-| 6 | Terraform ESXi automation |
+| 6 | Terraform: provision the 6 WS2025 hosts on the ESXi dev server |
 | 7 | Automated deployment of NWA environment |
 | 8 | Automated deployment of BAC environment |
 
