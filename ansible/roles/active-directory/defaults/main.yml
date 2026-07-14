@@ -1,0 +1,10 @@
+---
+# active-directory — promotes a guest VM to a Domain Controller.
+# This is the first application workload: everything domain-joined depends on it.
+
+ad_domain_name: "otlab.local"
+ad_domain_netbios: "OTLAB"
+
+# ad_safe_mode_password MUST be provided via an encrypted vault variable, e.g.
+# in group_vars/domain_controllers/vault.yml. Never commit it in plain text.
+# ad_safe_mode_password: "{{ vault_ad_safe_mode_password }}"

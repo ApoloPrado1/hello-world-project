@@ -34,11 +34,12 @@ ansible --version
 python3 -c "import winrm; print('WinRM OK')"
 ```
 
-Clone this repository:
+Clone this repository and install the required collections:
 
 ```bash
 git clone <this-repo-url> ot-lab
 cd ot-lab/ansible
+ansible-galaxy collection install -r requirements.yml
 ```
 
 ## 2. (Recommended) Edit with VS Code Remote-SSH
@@ -114,6 +115,13 @@ Install Studio 5000 on a target (the first automated software package):
 
 ```bash
 ansible-playbook playbooks/studio5000.yml --limit nwa-ews-01 --ask-vault-pass
+```
+
+Or run the whole environment in dependency order (hosts → domain → apps):
+
+```bash
+ansible-playbook site.yml --ask-vault-pass            # everything
+ansible-playbook site.yml --tags hosts --limit nwa-vh-01   # just the host layer
 ```
 
 Useful flags while learning:

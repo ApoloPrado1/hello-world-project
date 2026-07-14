@@ -1,2 +1,30 @@
 ---
-# active-directory role — tasks (to be implemented)
+# active-directory — install AD DS and promote this guest to a new forest/DC.
+
+- name: Fail early if the safe-mode password is not provided
+  ansible.builtin.assert:
+    that:
+      - ad_safe_mode_password is defined
+      - ad_safe_mode_password | length > 0
+    fail_msg: >-
+      ad_safe_mode_password must be set (use an encrypted vault variable,
+      e.g. group_vars/domain_controllers/vault.yml).
+
+- name: Install AD Domain Services role
+  ansible.windows.win_feature:
+    name:
+      - AD-Domain-Services
+    include_management_tools: true
+    state: present
+
+- name: Create the new AD forest / promote this host to Domain Controller
+  microsoft.ad.domain:
+    dns_domain_name: "{{ ad_domain_name }}"
+    domain_netbios_name: "{{ ad_domain_netbios }}"
+    safe_mode_password: "{{ ad_safe_mode_password }}"
+    reboot: true
+  register: ad_promotion
+
+- name: Report promotion result
+  ansible.builtin.debug:
+    msg: "Domain {{ ad_domain_name }} ready on {{ inventory_hostname }} (rebooted: {{ ad_promotion.reboot_required | default(false) }})"

@@ -1,0 +1,16 @@
+---
+# Example host_vars for the NW SCADA Virtualisation Host.
+# Copy this pattern for the other five VH hosts.
+
+ansible_host: 10.0.0.11            # TODO: real management IP
+
+# Guest VMs that this host runs (see docs/ARCHITECTURE.md §6.1).
+hyperv_guests:
+  - name: NWA-DC-01
+    cpu: 2
+    memory_gb: 8
+    vhd_size_gb: 99
+  - name: NWA-SS-01
+    cpu: 12
+    memory_gb: 32
+    vhd_size_gb: 99

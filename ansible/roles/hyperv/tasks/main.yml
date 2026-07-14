@@ -1,2 +1,61 @@
 ---
-# hyperv role — tasks (to be implemented)
+# hyperv — enable the Hyper-V role and provision guest VMs on the host.
+# NOTE: in the lab this host is itself a nested WS2025 VM on ESXi; the ESXi VM
+# must have "Expose hardware assisted virtualization" enabled for this to work.
+
+- name: Install Hyper-V features
+  ansible.windows.win_feature:
+    name: "{{ hyperv_features }}"
+    include_management_tools: true
+    state: present
+  register: hyperv_feature
+
+- name: Reboot if Hyper-V installation requires it
+  ansible.windows.win_reboot:
+  when: hyperv_feature.reboot_required
+
+- name: Ensure VM and VHD directories exist
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ hyperv_vm_path }}"
+    - "{{ hyperv_vhd_path }}"
+
+- name: Create external virtual switch (idempotent)
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $name = '{{ hyperv_external_switch_name }}'
+      if (-not (Get-VMSwitch -Name $name -ErrorAction SilentlyContinue)) {
+        New-VMSwitch -Name $name -NetAdapterName '{{ hyperv_external_switch_nic }}' `
+          -AllowManagementOS $true | Out-Null
+        $Ansible.Changed = $true
+      } else {
+        $Ansible.Changed = $false
+      }
+
+- name: Create guest VMs defined for this host
+  ansible.windows.win_powershell:
+    script: |
+      $ErrorActionPreference = 'Stop'
+      $name   = '{{ item.name }}'
+      $vhd    = Join-Path '{{ hyperv_vhd_path }}' ($name + '.vhdx')
+      $switch = '{{ item.switch | default(hyperv_external_switch_name) }}'
+      if (-not (Get-VM -Name $name -ErrorAction SilentlyContinue)) {
+        if (-not (Test-Path $vhd)) {
+          New-VHD -Path $vhd -SizeBytes ({{ item.vhd_size_gb | default(99) }}GB) -Dynamic | Out-Null
+        }
+        New-VM -Name $name -Generation 2 `
+          -MemoryStartupBytes ({{ item.memory_gb | default(8) }}GB) `
+          -VHDPath $vhd -SwitchName $switch `
+          -Path '{{ hyperv_vm_path }}' | Out-Null
+        Set-VM -Name $name -ProcessorCount {{ item.cpu | default(2) }}
+        $Ansible.Changed = $true
+      } else {
+        $Ansible.Changed = $false
+      }
+  loop: "{{ hyperv_guests }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: hyperv_guests | length > 0

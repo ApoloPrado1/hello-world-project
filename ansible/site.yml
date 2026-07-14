@@ -1,0 +1,37 @@
+---
+# Top-level orchestration. Runs the layers in dependency order.
+# Run everything:      ansible-playbook site.yml --ask-vault-pass
+# Run one layer:       ansible-playbook site.yml --tags hosts
+# Target one machine:  ansible-playbook site.yml --limit nwa-vh-01
+
+# 1. HOST LAYER — base config + Hyper-V on the six VH hosts.
+#    Must run before any guest exists (the guests live inside these hosts).
+- name: Configure Hyper-V hosts
+  hosts: hyperv_hosts
+  gather_facts: no
+  tags: [hosts, hyperv]
+  roles:
+    - windows-base
+    - hyperv
+    # - epp            # endpoint protection installs on the HOST layer
+
+# 2. DOMAIN LAYER — promote the Domain Controllers.
+#    First application workload; everything domain-joined depends on it.
+#    (The DC guest VMs must already be running with WinRM reachable.)
+- name: Promote Domain Controllers
+  hosts: domain_controllers
+  gather_facts: no
+  tags: [domain, ad]
+  roles:
+    - windows-base
+    - active-directory
+
+# 3. APPLICATION LAYER — guest workloads that join the domain.
+#    Fill in as roles are completed (SCADA, Historian, AssetCentre, Studio 5000).
+# - name: Configure application servers
+#   hosts: historians:assetcentre:scada_servers
+#   gather_facts: no
+#   tags: [apps]
+#   roles:
+#     - windows-base
+#     - studio5000

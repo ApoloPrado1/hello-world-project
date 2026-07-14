@@ -1,0 +1,13 @@
+---
+# Domain-wide settings for the Domain Controllers.
+# Keep the safe-mode password in an encrypted vault file alongside this one:
+#   ansible-vault create group_vars/domain_controllers/vault.yml
+# and set:  vault_ad_safe_mode_password: "..."
+
+ad_domain_name: "otlab.local"
+ad_domain_netbios: "OTLAB"
+ad_safe_mode_password: "{{ vault_ad_safe_mode_password }}"
+
+# A DC is its own DNS server; point it at itself (loopback).
+win_base_dns_servers:
+  - "127.0.0.1"

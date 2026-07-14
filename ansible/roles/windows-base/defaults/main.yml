@@ -1,0 +1,17 @@
+---
+# Baseline configuration applied to every Windows machine (hosts and guests).
+
+# Time
+win_base_timezone: "GMT Standard Time"
+win_base_ntp_servers:
+  - "0.pool.ntp.org"
+  - "1.pool.ntp.org"
+
+# Remote management / access
+win_base_enable_rdp: true
+win_base_allow_icmp: true          # handy for lab connectivity tests
+
+# Optional: DNS servers to set on the primary interface.
+# Leave empty to skip (guests usually point at the domain controller).
+win_base_dns_servers: []
+win_base_dns_interface: "Ethernet"

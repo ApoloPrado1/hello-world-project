@@ -1,0 +1,26 @@
+---
+# hyperv — host-layer role. Enables Hyper-V and provisions guest VMs.
+
+hyperv_features:
+  - Hyper-V
+  - RSAT-Hyper-V-Tools
+
+# External virtual switch bound to a physical/virtual NIC on the host.
+hyperv_external_switch_name: "OT-External"
+hyperv_external_switch_nic: "Ethernet"
+
+# Where guest VHDX files live on the host.
+hyperv_vm_path: 'C:\Hyper-V\VMs'
+hyperv_vhd_path: 'C:\Hyper-V\VHDs'
+
+# Guest VMs to create ON THIS HOST. Define per host in host_vars/<host>.yml.
+# A sysprepped WS2025 template VHDX (with WinRM enabled) is expected as the base
+# image so Ansible can reach the guest afterwards.
+#
+# hyperv_guests:
+#   - name: NWA-DC-01
+#     cpu: 2
+#     memory_gb: 8
+#     vhd_size_gb: 99
+#     switch: "OT-External"
+hyperv_guests: []
